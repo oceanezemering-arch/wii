@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function roomPath(code) { return /databases/$(database)/documents/rooms/$(code); }
+    function isMember(code) { return signedIn() && request.auth.uid in get(roomPath(code)).data.playerIds; }
+    function changed(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+
+    // Een poppetje per account. De naam staat vast na het aanmaken.
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 14
+        && request.resource.data.roomIds == [];
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.name == resource.data.name
+        && changed(['avatar', 'roomIds']);
+      allow delete: if false;
+    }
+
+    match /rooms/{code} {
+      // Opzoeken met een code mag, een lijst met alle kamers niet.
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && code.size() == 6 && request.resource.data.code == code
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.playerIds == [request.auth.uid]
+        && request.resource.data.boardSize in [30, 50, 100]
+        && request.resource.data.status == 'playing';
+      allow update: if signedIn() && (
+        // meedoen: jezelf toevoegen, maximaal 4 spelers
+        (!(request.auth.uid in resource.data.playerIds)
+          && resource.data.playerIds.size() < 4
+          && request.resource.data.playerIds == resource.data.playerIds.concat([request.auth.uid])
+          && changed(['playerIds']))
+        // uitslag opslaan door een lid
+        || (request.auth.uid in resource.data.playerIds && changed(['status', 'winnerIds', 'lastResolvedDay']))
+      );
+      allow delete: if false;
+
+      match /players/{uid} {
+        allow read: if isMember(code);
+        allow create: if signedIn() && request.auth.uid == uid && isMember(code)
+          && request.resource.data.uid == uid
+          && request.resource.data.position == 0 && request.resource.data.totalPoints == 0 && request.resource.data.dayWins == 0;
+        allow update: if isMember(code) && (
+          (request.auth.uid == uid && changed(['avatar']))
+          || changed(['position', 'totalPoints', 'dayWins'])
+        );
+        allow delete: if false;
+      }
+
+      match /days/{day} {
+        function dayData() { return get(/databases/$(database)/documents/rooms/$(code)/days/$(day)).data; }
+        allow read: if isMember(code);
+        allow create: if isMember(code)
+          && request.resource.data.status == 'open'
+          && request.resource.data.games.size() == 4
+          && request.resource.data.revealAt is timestamp;
+        // Een ronde sluiten kan pas na het eindtijdstip, volgens de servertijd.
+        allow update: if isMember(code) && resource.data.status == 'open'
+          && request.time >= resource.data.revealAt
+          && request.resource.data.status == 'resolved'
+          && changed(['status', 'resolvedAt']);
+        allow delete: if false;
+
+        match /scores/{sid} {
+          // Eigen scores altijd, scores van anderen pas na het eindtijdstip.
+          allow read: if isMember(code) && (request.time >= dayData().revealAt || resource.data.uid == request.auth.uid);
+          // Een score kan maar een keer worden gemaakt, voor jezelf, voor een minigame van vandaag, voor het eindtijdstip.
+          allow create: if isMember(code)
+            && request.resource.data.uid == request.auth.uid
+            && sid == request.auth.uid + '_' + request.resource.data.gameId
+            && request.resource.data.gameId in dayData().games
+            && request.resource.data.score is number
+            && dayData().status == 'open'
+            && request.time < dayData().revealAt;
+          allow update, delete: if false;
+        }
+
+        match /results/{uid} {
+          allow read: if isMember(code);
+          allow create: if isMember(code) && dayData().status == 'open' && request.time >= dayData().revealAt;
+          // Alleen jijzelf kunt aangeven dat je hebt gegooid.
+          allow update: if signedIn() && request.auth.uid == uid && changed(['thrown']) && request.resource.data.thrown == true;
+          allow delete: if false;
+        }
+      }
+    }
+  }
+}

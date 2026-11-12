@@ -1,0 +1,10 @@
+node_modules/
+.firebase/
+firebase-debug.log*
+firestore-debug.log
+*-debug.log
+.env
+.env.*
+*service-account*.json
+*.pem
+.DS_Store
