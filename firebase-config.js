@@ -1,10 +1,11 @@
-// Vul hier de gegevens van je Firebase web app in (Firebase console, Projectinstellingen, Je apps).
-// Deze waarden zijn niet geheim. De beveiliging zit in firestore.rules.
+// Gegevens van de Firebase web app. Deze waarden zijn niet geheim.
+// De beveiliging zit in firestore.rules.
 export const firebaseConfig = {
-  apiKey: 'VUL_IN',
-  authDomain: 'VUL_IN.firebaseapp.com',
-  projectId: 'VUL_IN',
-  storageBucket: 'VUL_IN.firebasestorage.app',
-  messagingSenderId: 'VUL_IN',
-  appId: 'VUL_IN',
+  apiKey: 'AIzaSyAO0luoLBgkRxzndg_IiMKkRQimQonx9g0',
+  authDomain: 'wiiparty10.firebaseapp.com',
+  projectId: 'wiiparty10',
+  storageBucket: 'wiiparty10.firebasestorage.app',
+  messagingSenderId: '996709632980',
+  appId: '1:996709632980:web:5fce9f34450638f12de441',
+  measurementId: 'G-RF5CBHC3EG',
 };
