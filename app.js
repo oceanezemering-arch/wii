@@ -514,7 +514,7 @@ const gauss = (x, z, cx, cz, h, s) => h * Math.exp(-(((x - cx) ** 2 + (z - cz) *
 function pathPoints(size) {
   const P = []; let th = TH0;
   for (let i = 0; i <= size; i++) {
-    const s = i / size, r = 62 - 40 * s, x = AX * r * Math.cos(th), z = AZ * r * Math.sin(th); P.push({ i, r, th, x, z, y: .5 + 26.3 * s });
+    const s = i / size, r = 62 - 40 * s, x = AX * r * Math.cos(th), z = AZ * r * Math.sin(th); P.push({ i, r, th, x, z, y: .5 + 26.3 * Math.min(1, s / .9) });
     const r2 = 62 - 40 * (i + 1) / size; let t2 = th; for (let k = 0; k < 600; k++) { t2 += .004; if (Math.hypot(AX * r2 * Math.cos(t2) - x, AZ * r2 * Math.sin(t2) - z) >= 4.1) break; } th = t2;
   }
   P.forEach((p, i) => { const a = P[Math.max(0, i - 1)], b = P[Math.min(size, i + 1)], dx = b.x - a.x, dz = b.z - a.z, L = Math.hypot(dx, dz) || 1; p.tx = dx / L; p.tz = dz / L; });
@@ -570,7 +570,7 @@ function buildWorld(size) {
   for (let v = 0; v < cnt; v++) { let h = baseH(pos.getX(v), pos.getZ(v)); const w = 1 - smooth(3.0, 6.2, best[v]); h = h * (1 - w) + yp[v] * w; Hh[v] = h; pos.setY(v, h); }
   geo.computeVertexNormals();
   const nor = geo.attributes.normal, colA = new Float32Array(cnt * 3), C = new T.Color();
-  const pal = { sand: new T.Color('#f2e4b8'), sand2: new T.Color('#e6cf96'), g1: new T.Color('#86cf62'), g2: new T.Color('#5eaa48'), g3: new T.Color('#a6c86a'), r1: new T.Color('#c58e5f'), r2: new T.Color('#9d7a62'), r3: new T.Color('#d8b184'), path: new T.Color('#e2c88f'), deep: new T.Color('#2a93aa'), shal: new T.Color('#9fe0d6'), plat: new T.Color('#9bb15a') };
+  const pal = { sand: new T.Color('#f2e4b8'), sand2: new T.Color('#e6cf96'), g1: new T.Color('#86cf62'), g2: new T.Color('#5eaa48'), g3: new T.Color('#a6c86a'), r1: new T.Color('#c58e5f'), r2: new T.Color('#9d7a62'), r3: new T.Color('#d8b184'), path: new T.Color('#d3b87f'), deep: new T.Color('#2a93aa'), shal: new T.Color('#9fe0d6'), plat: new T.Color('#86a04c') };
   for (let v = 0; v < cnt; v++) {
     const x = pos.getX(v), z = pos.getZ(v), y = Hh[v], slope = 1 - nor.getY(v), n = .5 + .5 * Math.sin(x * .37) * Math.sin(z * .31), ang = Math.atan2(z, x), w = 1 - smooth(3.0, 6.2, best[v]), r = Math.hypot(x / AX, z / AZ), rc = Math.hypot(x, z);
     if (y < -.75) C.copy(pal.shal).lerp(pal.deep, clamp01((-.75 - y) / 4));
@@ -578,7 +578,7 @@ function buildWorld(size) {
     else if (slope > .38 && y > 1.5) { C.copy(pal.r1).lerp(pal.r2, .5 + .5 * Math.sin(ang * 37 + y * .35)).lerp(pal.r3, .5 + .5 * Math.sin(y * 1.9 + ang * 5) * .6); }
     else if (y > 26 && r < 30) C.copy(pal.plat).lerp(pal.g3, n);
     else C.copy(pal.g1).lerp(pal.g2, n * .8 + clamp01(y / 30) * .0).lerp(pal.g3, clamp01((y - 8) / 18) * .6);
-    if (w > .6) C.lerp(pal.path, w * .85);
+    if (w > .85) C.lerp(pal.path, (w - .85) / .15 * .7);
     colA[v * 3] = C.r; colA[v * 3 + 1] = C.g; colA[v * 3 + 2] = C.b;
   }
   geo.setAttribute('color', new T.BufferAttribute(colA, 3));
@@ -616,12 +616,15 @@ function buildWorld(size) {
   const tcup = new T.Mesh(new T.CylinderGeometry(1.5, .7, 2, 20), goldM); tcup.position.y = 1.9; trophy.add(tcup); const tst = new T.Mesh(new T.CylinderGeometry(.25, .25, 1, 10), goldM); tst.position.y = .5; trophy.add(tst); const tbs = new T.Mesh(new T.CylinderGeometry(1, 1.2, .5, 16), goldM); tbs.position.y = 0; trophy.add(tbs);
   for (const sd of [-1, 1]) { const hd = new T.Mesh(new T.TorusGeometry(.7, .14, 8, 16), goldM); hd.position.set(sd * 1.55, 2.1, 0); trophy.add(hd); }
   const halo = new T.Mesh(new T.TorusGeometry(3.2, .18, 8, 40), goldM); halo.rotation.x = Math.PI / 2; halo.position.y = 5.2; sum.add(halo);
-  const gl = new T.PointLight(0xffd24a, 1.4, 60); gl.position.set(0, 10, 0); sum.add(gl);
+  const gl = new T.PointLight(0xffd24a, .45, 40); gl.position.set(0, 10, 0); sum.add(gl);
   const sparks = []; for (let i = 0; i < 16; i++) { const sp = new T.Mesh(new T.OctahedronGeometry(.28), goldM); sp.userData.a = i / 16 * 6.28; sp.userData.h = 3 + (i % 4) * 2.2; sum.add(sp); sparks.push(sp); }
   upd.push(t => { trophy.rotation.y = t * .8; halo.rotation.z = t * .5; halo.position.y = 5.2 + Math.sin(t * 1.5) * .3; sparks.forEach((sp, i) => { const a = sp.userData.a + t * .7; sp.position.set(Math.cos(a) * 6.5, sp.userData.h + 3 + Math.sin(t * 2 + i) * .6, Math.sin(a) * 6.5); sp.rotation.y = t * 2; }); });
   const cloth = new T.Group(); scene.add(cloth); const cm = new T.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: .93 });
-  for (let i = 0; i < 26; i++) { const a = TH0 - 1.5 + i * .12 + R(-.05, .05), rr = 23 + R(0, 7), m = new T.Mesh(new T.SphereGeometry(R(3.5, 6.5), 16, 12), cm); m.scale.set(1.3, .55, 1.3); m.position.set(AX * rr * Math.cos(a), 29 + R(-1, 2), AZ * rr * Math.sin(a)); m.userData.y0 = m.position.y; cloth.add(m); }
-  for (let i = 0; i < 9; i++) { const a = TH0 - 1.2 + i * .3, m = new T.Mesh(new T.SphereGeometry(R(3, 4.5), 14, 10), cm); m.scale.set(1.2, .6, 1.2); m.position.set(AX * 33 * Math.cos(a), 25 + R(-1, 1), AZ * 33 * Math.sin(a)); m.userData.y0 = m.position.y; cloth.add(m); }
+  const aEnd = P[size].th, angDiff = a => Math.abs(((a - aEnd) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+  for (let i = 0; i < 44; i++) {   // de wolk hangt over de rand, maar nooit boven de laatste vakjes en de top
+    const a = i / 44 * Math.PI * 2 + R(-.04, .04); if (angDiff(a) < 1.25) continue;
+    const rr = 25 + R(0, 6), m = new T.Mesh(new T.SphereGeometry(R(3.2, 5.8), 16, 12), cm); m.scale.set(1.3, .5, 1.3); m.position.set(AX * rr * Math.cos(a), 31 + R(-1, 1.5), AZ * rr * Math.sin(a)); m.userData.y0 = m.position.y; cloth.add(m);
+  }
 
   // ----- kabelbaan
   const phi = 2.9, Bp = new T.Vector3(AX * 66 * Math.cos(phi), 9, AZ * 66 * Math.sin(phi)), Tp = new T.Vector3(AX * 24 * Math.cos(phi), 33.5, AZ * 24 * Math.sin(phi));
@@ -795,7 +798,7 @@ VIEWS.room = () => {
       });
       const mp = pawns.me.pos;
       if (overview) { const a = Math.PI / 2 + vw.az, cp = Math.cos(vw.pitch) * vw.dist; des.set(Math.cos(a) * cp, 12 + Math.sin(vw.pitch) * vw.dist, Math.sin(a) * cp); lk.set(0, 12, 0); }
-      else { const a = Math.atan2(mp.z, mp.x) + vw.az, cp = Math.cos(vw.pitch) * vw.dist; des.set(mp.x + Math.cos(a) * cp, mp.y + 1.5 + Math.sin(vw.pitch) * vw.dist, mp.z + Math.sin(a) * cp); lk.set(mp.x, mp.y - 2.5, mp.z); }
+      else { const hi = clamp01((mp.y - 16) / 10), pd = vw.dist * (1 + hi * .9), pp = Math.min(1.4, vw.pitch + hi * .5), a = Math.atan2(mp.z, mp.x) + vw.az, cp = Math.cos(pp) * pd; des.set(mp.x + Math.cos(a) * cp, mp.y + 1.5 + Math.sin(pp) * pd, mp.z + Math.sin(a) * cp); lk.set(mp.x, mp.y - 2.5 - hi * 3, mp.z); }
       des.y = Math.max(des.y, world.terrainH(des.x, des.z) + 3);
       if (!started) { camP.copy(des); lookV.copy(lk); started = true; } else { const k = 1 - Math.exp(-dt * 6); camP.lerp(des, k); lookV.lerp(lk, k); }
       cam.position.copy(camP); cam.lookAt(lookV); R.render(world.scene, cam);
@@ -1050,11 +1053,13 @@ RUN.barrel = (area, hud, look, finish) => {
   let y = -100, vy = 0, st = 'wait', t = 0, raf, done = false, shake = 0, miss = null, T = 0;
   const loop = now => {
     const dt = Math.min(.05, (now - (loop.l || now)) / 1000); loop.l = now; T += dt; t += dt;
-    if (st === 'wait' && t > delay) st = 'fall1';
-    if (st === 'fall1') { vy += 330 * dt; y += vy * dt; if (y >= hoverAt) { st = 'hover'; t = 0; vy = 0; } }
-    else if (st === 'hover') { if (t > hoverLen) st = 'fall2'; }
-    else if (st === 'fall2') { vy += 760 * dt; y += vy * dt; if (y + BH >= HEAD + MAX) end(); }
-    const sway = st === 'wait' || st === 'hover' ? Math.sin(T * 5) * 4 : 0;
+    if (!done) {   // na de tik blijft de gondel precies hangen waar hij was
+      if (st === 'wait' && t > delay) st = 'fall1';
+      if (st === 'fall1') { vy += 330 * dt; y += vy * dt; if (y >= hoverAt) { st = 'hover'; t = 0; vy = 0; } }
+      else if (st === 'hover') { if (t > hoverLen) st = 'fall2'; }
+      else if (st === 'fall2') { vy += 760 * dt; y += vy * dt; if (y + BH >= HEAD + MAX) end(); }
+    }
+    const sway = !done && (st === 'wait' || st === 'hover') ? Math.sin(T * 5) * 4 : 0;
     c.save(); if (shake > 0) { c.translate(0, (Math.random() - .5) * shake * 10); shake = Math.max(0, shake - dt * 4); }
     capeBG(c, W, H, GY - 20, 0, T); c.fillStyle = '#8bd36a'; c.fillRect(0, GY - 20, W, H); c.fillStyle = '#b79872'; rr(c, W / 2 - 90, GY - 10, 180, 40, 12); c.fill(); c.fillStyle = '#8a6c4a'; c.fillRect(W / 2 - 90, GY + 20, 180, 12);
     c.strokeStyle = '#3b4252'; c.lineWidth = 3; c.beginPath(); c.moveTo(W / 2 - 14, 0); c.lineTo(W / 2 - 14, H); c.moveTo(W / 2 + 14, 0); c.lineTo(W / 2 + 14, H); c.stroke();
@@ -1067,7 +1072,7 @@ RUN.barrel = (area, hud, look, finish) => {
     if (miss !== null) bubble(c, W / 2, 90, Math.round(miss) + ' px ernaast', miss < 14 ? '#2dbf6f' : miss < 50 ? '#1f8ee6' : '#e5484d');
     c.restore(); raf = requestAnimationFrame(loop);
   };
-  function end() { if (done || st === 'wait') return; done = true; miss = Math.min(MAX, Math.abs(y + BH - HEAD)); shake = 1; beep(miss < 14 ? 700 : 200, .3); finish(Math.round(miss)); }
+  function end() { if (done || st === 'wait') return; done = true; miss = Math.min(MAX, Math.abs(y + BH - HEAD)); shake = .25; beep(miss < 14 ? 700 : 200, .3); finish(Math.round(miss)); }
   raf = requestAnimationFrame(loop); cv.onpointerdown = () => end();
   return () => cancelAnimationFrame(raf);
 };
